@@ -1,0 +1,61 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/scripture
+    binary: scripture
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/vibolsovichea/scripture/internal/version.Version={{.Version}}
+      - -X github.com/vibolsovichea/scripture/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/vibolsovichea/scripture/internal/version.Date={{.Date}}
+
+archives:
+  - format: tar.gz
+    name_template: "scripture_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - repository:
+      owner: vibolsovichea
+      name: homebrew-scripture
+    homepage: "https://github.com/vibolsovichea/scripture"
+    description: "A terminal note-taking app inspired by Khmer wall carvings"
+    license: "MIT"
+    install: |
+      bin.install "scripture"
+    test: |
+      system "#{bin}/scripture", "--version"
+
+release:
+  github:
+    owner: vibolsovichea
+    name: scripture

@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	titleStyle = lipgloss.NewStyle().
+	setupTitleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("205")).
+			Foreground(lipgloss.Color("#D4A843")).
 			MarginBottom(1)
 
-	subtleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("241"))
+	setupSubtleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#8B8680"))
 )
 
 type SetupModel struct {
@@ -66,9 +66,9 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m SetupModel) View() string {
 	return fmt.Sprintf(
 		"\n%s\n\n%s\n\n%s\n\n%s\n",
-		titleStyle.Render("Scripture — First Time Setup"),
+		setupTitleStyle.Render("Scripture — First Time Setup"),
 		"Where should Scripture store your notes?",
 		m.input.View(),
-		subtleStyle.Render("Press Enter to confirm • Esc to cancel"),
+		setupSubtleStyle.Render("Press Enter to confirm • Esc to cancel"),
 	)
 }

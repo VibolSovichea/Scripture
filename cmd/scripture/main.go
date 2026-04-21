@@ -6,11 +6,17 @@ import (
 
 	"github.com/vibolsovichea/scripture/internal/config"
 	"github.com/vibolsovichea/scripture/internal/ui"
+	"github.com/vibolsovichea/scripture/internal/version"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("scripture %s (commit: %s, built: %s)\n", version.Version, version.Commit, version.Date)
+		os.Exit(0)
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
@@ -18,7 +24,6 @@ func main() {
 	}
 
 	if cfg == nil {
-		// First run — prompt for vault location
 		p := tea.NewProgram(ui.NewSetupModel())
 		m, err := p.Run()
 		if err != nil {

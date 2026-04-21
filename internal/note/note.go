@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,10 +15,9 @@ type Note struct {
 	Created  time.Time
 	Modified time.Time
 	Body     string
-	Path     string // absolute path to the .md file
+	Path     string
 }
 
-// frontmatter generates YAML frontmatter for the note.
 func (n *Note) frontmatter() string {
 	tags := "[]"
 	if len(n.Tags) > 0 {
@@ -33,12 +31,10 @@ modified: %s
 ---`, n.Title, tags, n.Created.Format("2006-01-02"), n.Modified.Format("2006-01-02"))
 }
 
-// ToMarkdown returns the full file content.
 func (n *Note) ToMarkdown() string {
 	return n.frontmatter() + "\n\n" + n.Body
 }
 
-// Create creates a new note file in the given directory.
 func Create(dir, title string, tags []string) (*Note, error) {
 	now := time.Now()
 	filename := toFilename(title) + ".md"
@@ -59,7 +55,6 @@ func Create(dir, title string, tags []string) (*Note, error) {
 	return n, nil
 }
 
-// Load reads a note from a markdown file.
 func Load(path string) (*Note, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -68,12 +63,10 @@ func Load(path string) (*Note, error) {
 	return Parse(path, string(data))
 }
 
-// Parse parses note content from a string.
 func Parse(path, content string) (*Note, error) {
 	n := &Note{Path: path}
 	scanner := bufio.NewScanner(strings.NewReader(content))
 
-	// Check for frontmatter
 	if scanner.Scan() && strings.TrimSpace(scanner.Text()) == "---" {
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -84,7 +77,6 @@ func Parse(path, content string) (*Note, error) {
 		}
 	}
 
-	// Rest is body
 	var body strings.Builder
 	for scanner.Scan() {
 		body.WriteString(scanner.Text())
@@ -92,7 +84,6 @@ func Parse(path, content string) (*Note, error) {
 	}
 	n.Body = strings.TrimSpace(body.String())
 
-	// Fallback title from filename
 	if n.Title == "" {
 		base := filepath.Base(path)
 		n.Title = strings.TrimSuffix(base, ".md")
@@ -130,13 +121,16 @@ func parseFrontmatterLine(n *Note, line string) {
 	}
 }
 
-// Save writes the note back to disk.
+func (n *Note) SetBody(body string) {
+	n.Body = body
+	n.Modified = time.Now()
+}
+
 func (n *Note) Save() error {
 	n.Modified = time.Now()
 	return os.WriteFile(n.Path, []byte(n.ToMarkdown()), 0644)
 }
 
-// Delete moves the note to the trash directory.
 func (n *Note) Delete(trashDir string) error {
 	if err := os.MkdirAll(trashDir, 0755); err != nil {
 		return err
@@ -145,34 +139,19 @@ func (n *Note) Delete(trashDir string) error {
 	return os.Rename(n.Path, dest)
 }
 
-// OpenInEditor opens the note in the user's $EDITOR.
-func (n *Note) OpenInEditor() error {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	cmd := exec.Command(editor, n.Path)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// ListAll returns all notes in a directory (recursive).
 func ListAll(dir string) ([]*Note, error) {
 	var notes []*Note
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		// Skip hidden subdirectories (but not the root)
 		if info.IsDir() && strings.HasPrefix(info.Name(), ".") && path != dir {
 			return filepath.SkipDir
 		}
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
 			n, err := Load(path)
 			if err != nil {
-				return nil // skip unreadable files
+				return nil
 			}
 			notes = append(notes, n)
 		}
@@ -181,11 +160,9 @@ func ListAll(dir string) ([]*Note, error) {
 	return notes, err
 }
 
-// toFilename converts a title to a safe filename.
 func toFilename(title string) string {
 	s := strings.ToLower(title)
 	s = strings.ReplaceAll(s, " ", "-")
-	// Remove non-alphanumeric except hyphens
 	var b strings.Builder
 	for _, r := range s {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {

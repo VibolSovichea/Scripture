@@ -17,7 +17,6 @@ type Config struct {
 	VaultPath string `yaml:"vault_path"`
 }
 
-// configPath returns the path to the global config file.
 func configPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -26,7 +25,6 @@ func configPath() (string, error) {
 	return filepath.Join(home, configDir, configFile), nil
 }
 
-// Load reads the config from disk. Returns nil if no config exists yet.
 func Load() (*Config, error) {
 	path, err := configPath()
 	if err != nil {
@@ -48,9 +46,7 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// Init creates the vault directory structure and writes the config.
 func Init(vaultPath string) (*Config, error) {
-	// Expand ~ if needed
 	if len(vaultPath) >= 2 && vaultPath[:2] == "~/" {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -59,7 +55,6 @@ func Init(vaultPath string) (*Config, error) {
 		vaultPath = filepath.Join(home, vaultPath[2:])
 	}
 
-	// Create vault directories
 	dirs := []string{
 		vaultPath,
 		filepath.Join(vaultPath, "notes"),
@@ -71,7 +66,6 @@ func Init(vaultPath string) (*Config, error) {
 		}
 	}
 
-	// Create internal dir for trash
 	internal := filepath.Join(vaultPath, ".scripture")
 	if err := os.MkdirAll(filepath.Join(internal, "trash"), 0755); err != nil {
 		return nil, err
@@ -79,7 +73,6 @@ func Init(vaultPath string) (*Config, error) {
 
 	cfg := &Config{VaultPath: vaultPath}
 
-	// Write global config
 	path, err := configPath()
 	if err != nil {
 		return nil, err

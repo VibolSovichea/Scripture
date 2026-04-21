@@ -2,7 +2,6 @@ package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-// Scripture color palette — warm, earthy tones inspired by ancient carvings
 var (
 	gold      = lipgloss.Color("#D4A843")
 	amber     = lipgloss.Color("#C4873B")
@@ -18,7 +17,6 @@ var (
 var (
 	borderStyle = lipgloss.RoundedBorder()
 
-	// Dashboard
 	asciiStyle = lipgloss.NewStyle().
 			Foreground(gold).
 			Bold(true)
@@ -52,7 +50,6 @@ var (
 			Foreground(darkStone).
 			Italic(true)
 
-	// Telescope / Finder
 	finderBorderStyle = lipgloss.NewStyle().
 				BorderStyle(borderStyle).
 				BorderForeground(darkStone)
@@ -105,17 +102,14 @@ var (
 	finderCountStyle = lipgloss.NewStyle().
 			Foreground(stone)
 
-	// Input prompt
 	inputLabelStyle = lipgloss.NewStyle().
 			Foreground(amber).
 			Bold(true)
 
-	// Delete confirm
 	deleteWarnStyle = lipgloss.NewStyle().
 			Foreground(rust).
 			Bold(true)
 
-	// Help bar
 	helpKeyStyle = lipgloss.NewStyle().
 			Foreground(amber).
 			Bold(true)
@@ -123,7 +117,6 @@ var (
 	helpDescStyle = lipgloss.NewStyle().
 			Foreground(stone)
 
-	// New Note modal
 	createBorderStyle = lipgloss.NewStyle().
 				BorderStyle(borderStyle).
 				BorderForeground(gold)

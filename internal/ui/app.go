@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,6 +24,7 @@ const (
 	viewDashboard view = iota
 	viewFinder
 	viewCreate
+	viewEditor
 )
 
 type finderMode int
@@ -75,9 +74,11 @@ type AppModel struct {
 	finderCursor int
 	finderScroll int
 	input        textinput.Model
-	createStep createStep
-	newTitle   string
+	createStep  createStep
+	newTitle    string
 	createInput textinput.Model
+
+	editor EditorModel
 
 	err error
 }
@@ -138,17 +139,19 @@ func (m AppModel) Init() tea.Cmd {
 	return nil
 }
 
-// --- Update ---
-
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case editorFinishedMsg:
+	case editorCloseMsg:
 		m.loadNotes()
+		m.view = viewDashboard
 		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.view == viewEditor {
+			m.editor.Resize(m.width, m.height)
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -159,7 +162,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateFinder(msg)
 		case viewCreate:
 			return m.updateCreate(msg)
+		case viewEditor:
+			var cmd tea.Cmd
+			m.editor, cmd = m.editor.Update(msg)
+			return m, cmd
 		}
+	}
+
+	if m.view == viewEditor {
+		var cmd tea.Cmd
+		m.editor, cmd = m.editor.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -208,11 +221,8 @@ func (m AppModel) handleDashEnter() (tea.Model, tea.Cmd) {
 
 	recentIdx := m.dashCursor - len(dashActions)
 	if recentIdx >= 0 && recentIdx < len(m.recent) {
-		n := m.recent[recentIdx]
-		c := makeEditorCmd(n.Path)
-		return m, tea.ExecProcess(c, func(err error) tea.Msg {
-			return editorFinishedMsg{err}
-		})
+		m.openEditor(m.recent[recentIdx])
+		return m, nil
 	}
 	return m, nil
 }
@@ -226,6 +236,11 @@ func (m *AppModel) openFinder() {
 	m.input.SetValue("")
 	m.input.Placeholder = "Search notes..."
 	m.input.Focus()
+}
+
+func (m *AppModel) openEditor(n *note.Note) {
+	m.editor = NewEditorModel(n, m.width, m.height)
+	m.view = viewEditor
 }
 
 func (m *AppModel) openCreate() {
@@ -264,11 +279,8 @@ func (m AppModel) handleFinderNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		if len(m.filtered) > 0 {
-			n := m.filtered[m.finderCursor]
-			c := makeEditorCmd(n.Path)
-			return m, tea.ExecProcess(c, func(err error) tea.Msg {
-				return editorFinishedMsg{err}
-			})
+			m.openEditor(m.filtered[m.finderCursor])
+			return m, nil
 		}
 	case "ctrl+d":
 		if len(m.filtered) > 0 {
@@ -309,8 +321,6 @@ func (m AppModel) handleFinderDelete(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// --- Create Update ---
-
 func (m AppModel) updateCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
@@ -338,7 +348,6 @@ func (m AppModel) updateCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.createInput.Placeholder = "e.g. project, idea, draft (optional)"
 			return m, nil
 		}
-		// createStepTags — finalize
 		tags := parseTags(m.createInput.Value())
 		dir := filepath.Join(m.cfg.VaultPath, "notes")
 		n, err := note.Create(dir, m.newTitle, tags)
@@ -348,21 +357,16 @@ func (m AppModel) updateCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.createInput.Blur()
 			return m, nil
 		}
-		m.view = viewDashboard
 		m.createInput.Blur()
 		m.loadNotes()
-		c := makeEditorCmd(n.Path)
-		return m, tea.ExecProcess(c, func(err error) tea.Msg {
-			return editorFinishedMsg{err}
-		})
+		m.openEditor(n)
+		return m, nil
 	}
 
 	var cmd tea.Cmd
 	m.createInput, cmd = m.createInput.Update(msg)
 	return m, cmd
 }
-
-// ===== Views =====
 
 func (m AppModel) View() string {
 	if m.width == 0 {
@@ -374,17 +378,16 @@ func (m AppModel) View() string {
 		return m.viewFinder()
 	case viewCreate:
 		return m.viewCreate()
+	case viewEditor:
+		return m.editor.View()
 	default:
 		return m.viewDashboard()
 	}
 }
 
-// --- Dashboard View ---
-
 func (m AppModel) viewDashboard() string {
 	var sections []string
 
-	// ASCII art
 	art := asciiStyle.Render(m.ascii)
 	sections = append(sections, art)
 	sections = append(sections, "")
@@ -411,7 +414,6 @@ func (m AppModel) viewDashboard() string {
     sections = append(sections, "")
 }
 
-	// Recent files
 	if len(m.recent) > 0 {
 		sections = append(sections, "")
 		sections = append(sections, "      "+dashRecentTitleStyle.Render("Recent Notes"))
@@ -437,7 +439,6 @@ func (m AppModel) viewDashboard() string {
 		}
 	}
 
-	// Footer
 	sections = append(sections, "")
 	sections = append(sections, "")
 	sections = append(sections, dashFooterStyle.Render(
@@ -453,8 +454,6 @@ func (m AppModel) viewDashboard() string {
 	)
 }
 
-// --- Finder View (Telescope-style, search at bottom) ---
-
 func (m AppModel) viewFinder() string {
 	modalW := min(m.width-4, 100)
 	modalH := min(m.height-4, 30)
@@ -469,37 +468,25 @@ func (m AppModel) viewFinder() string {
 	previewW := modalW - listW
 	innerW := modalW - 2 // inside border
 
-	// Content area height: modal - title - search bar - help - dividers
 	contentH := modalH - 5
 	if contentH < 3 {
 		contentH = 3
 	}
 
-	// Title bar
 	titleBar := finderTitleStyle.Render(" Find Notes")
 
-	// Horizontal divider under title
 	topDiv := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
 
-	// Left: file list
 	left := m.finderList(listW, contentH)
 
-	// Vertical separator
 	var sepLines []string
 	for i := 0; i < contentH; i++ {
 		sepLines = append(sepLines, finderPreviewDivStyle.Render("│"))
 	}
 	sep := strings.Join(sepLines, "\n")
-
-	// Right: preview
 	right := m.finderPreview(previewW, contentH)
-
 	content := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
-
-	// Divider above search
 	bottomDiv := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
-
-	// Search bar at bottom
 	var searchBar string
 	if m.finderMode == finderDelete {
 		n := m.filtered[m.finderCursor]
@@ -510,11 +497,8 @@ func (m AppModel) viewFinder() string {
 		prompt := inputLabelStyle.Render(" > ")
 		searchBar = prompt + m.input.View()
 	}
-
-	// Help
 	help := m.finderHelp()
 
-	// Compose modal
 	modal := lipgloss.JoinVertical(lipgloss.Left,
 		titleBar,
 		topDiv,
@@ -567,12 +551,10 @@ func (m AppModel) finderList(w, h int) string {
 		}
 	}
 
-	// Pad to fill height
 	for len(lines) < h {
 		lines = append(lines, "")
 	}
 
-	// Count indicator on last line
 	countStr := finderCountStyle.Render(
 		fmt.Sprintf("  %d/%d", len(m.filtered), len(m.notes)),
 	)
@@ -659,8 +641,6 @@ func (m AppModel) finderHelp() string {
 	return " " + strings.Join(parts, "  ")
 }
 
-// --- Create Note View (distinct from finder) ---
-
 func (m AppModel) viewCreate() string {
 	modalW := min(m.width-4, 60)
 	if modalW < 30 {
@@ -668,13 +648,9 @@ func (m AppModel) viewCreate() string {
 	}
 	innerW := modalW - 2
 
-	// Title
 	title := createTitleStyle.Render(" New Note")
-
-	// Divider
 	div := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
 
-	// Step indicators
 	step1Label := "Title"
 	step2Label := "Tags"
 
@@ -690,7 +666,6 @@ func (m AppModel) viewCreate() string {
 
 	steps := fmt.Sprintf(" %s    %s", step1, step2)
 
-	// Show confirmed title when on tags step
 	var titlePreview string
 	if m.createStep == createStepTags {
 		titlePreview = fmt.Sprintf(" %s %s",
@@ -699,7 +674,6 @@ func (m AppModel) viewCreate() string {
 		)
 	}
 
-	// Input field
 	var inputLabel string
 	if m.createStep == createStepTitle {
 		inputLabel = createLabelStyle.Render(" Title")
@@ -708,11 +682,9 @@ func (m AppModel) viewCreate() string {
 	}
 	inputLine := fmt.Sprintf(" %s\n %s", inputLabel, m.createInput.View())
 
-	// Help
 	help := " " + helpKeyStyle.Render("Enter") + helpDescStyle.Render(" next  ") +
 		helpKeyStyle.Render("Esc") + helpDescStyle.Render(" back")
 
-	// Compose
 	var parts []string
 	parts = append(parts, title)
 	parts = append(parts, div)
@@ -741,8 +713,6 @@ func (m AppModel) viewCreate() string {
 	)
 }
 
-// ===== Helpers =====
-
 func (m *AppModel) clampFinderScroll() {
 	visibleH := m.finderVisibleCount()
 	if m.finderCursor < m.finderScroll {
@@ -764,16 +734,6 @@ func (m AppModel) finderVisibleCount() int {
 	}
 	return h
 }
-
-func makeEditorCmd(path string) *exec.Cmd {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	return exec.Command(editor, path)
-}
-
-type editorFinishedMsg struct{ err error }
 
 func filterNotes(notes []*note.Note, query string) []*note.Note {
 	q := strings.ToLower(query)

@@ -5,8 +5,8 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/scripture
-    binary: scripture
+  - main: ./cmd/etch
+    binary: etch
     env:
       - CGO_ENABLED=0
     goos:
@@ -21,13 +21,13 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X github.com/vibolsovichea/scripture/internal/version.Version={{.Version}}
-      - -X github.com/vibolsovichea/scripture/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/vibolsovichea/scripture/internal/version.Date={{.Date}}
+      - -X github.com/vibolsovichea/etch/internal/version.Version={{.Version}}
+      - -X github.com/vibolsovichea/etch/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/vibolsovichea/etch/internal/version.Date={{.Date}}
 
 archives:
   - format: tar.gz
-    name_template: "scripture_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "etch_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         format: zip
@@ -46,17 +46,17 @@ changelog:
 brews:
   - repository:
       owner: vibolsovichea
-      name: homebrew-scripture
+      name: homebrew-etch
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/vibolsovichea/scripture"
+    homepage: "https://github.com/vibolsovichea/etch"
     description: "A terminal note-taking app inspired by Khmer wall carvings"
     license: "MIT"
     install: |
-      bin.install "scripture"
+      bin.install "etch"
     test: |
-      system "#{bin}/scripture", "--version"
+      system "#{bin}/etch", "--version"
 
 release:
   github:
     owner: vibolsovichea
-    name: scripture
+    name: etch

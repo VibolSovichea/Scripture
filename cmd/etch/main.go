@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vibolsovichea/scripture/internal/config"
-	"github.com/vibolsovichea/scripture/internal/ui"
-	"github.com/vibolsovichea/scripture/internal/version"
+	"github.com/vibolsovichea/etch/internal/config"
+	"github.com/vibolsovichea/etch/internal/ui"
+	"github.com/vibolsovichea/etch/internal/version"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
 	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
-		fmt.Printf("scripture %s (commit: %s, built: %s)\n", version.Version, version.Commit, version.Date)
+		fmt.Printf("etch %s (commit: %s, built: %s)\n", version.Version, version.Commit, version.Date)
 		os.Exit(0)
 	}
 

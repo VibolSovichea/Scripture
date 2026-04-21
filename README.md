@@ -1,4 +1,4 @@
-# Scripture
+# etch
 
 A lightweight terminal note-taking app inspired by Khmer wall carvings. Manage your markdown notes with a Neovim-style dashboard and Telescope-style fuzzy finder.
 
@@ -20,28 +20,28 @@ A lightweight terminal note-taking app inspired by Khmer wall carvings. Manage y
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew tap vibolsovichea/scripture
-brew install scripture
+brew tap vibolsovichea/etch
+brew install etch
 ```
 
 ### Go install
 
 ```bash
-go install github.com/vibolsovichea/scripture/cmd/scripture@latest
+go install github.com/vibolsovichea/etch/cmd/etch@latest
 ```
 
 ### Binary download
 
-Download pre-built binaries from [GitHub Releases](https://github.com/vibolsovichea/scripture/releases).
+Download pre-built binaries from [GitHub Releases](https://github.com/vibolsovichea/etch/releases).
 
 ## Usage
 
 ```bash
-scripture            # Launch the app
-scripture --version  # Show version info
+etch            # Launch the app
+etch --version  # Show version info
 ```
 
-On first run, Scripture will ask where to store your notes. Notes are plain markdown files — compatible with Obsidian and other markdown editors.
+On first run, etch will ask where to store your notes. Notes are plain markdown files — compatible with Obsidian and other markdown editors.
 
 ## Keybindings
 

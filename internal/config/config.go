@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	configDir  = ".scripture"
+	configDir  = ".etch"
 	configFile = "config.yaml"
 )
 
@@ -66,7 +66,7 @@ func Init(vaultPath string) (*Config, error) {
 		}
 	}
 
-	internal := filepath.Join(vaultPath, ".scripture")
+	internal := filepath.Join(vaultPath, ".etch")
 	if err := os.MkdirAll(filepath.Join(internal, "trash"), 0755); err != nil {
 		return nil, err
 	}

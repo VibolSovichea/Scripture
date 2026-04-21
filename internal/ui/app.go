@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vibolsovichea/scripture/internal/asset"
-	"github.com/vibolsovichea/scripture/internal/config"
-	"github.com/vibolsovichea/scripture/internal/note"
+	"github.com/vibolsovichea/etch/internal/asset"
+	"github.com/vibolsovichea/etch/internal/config"
+	"github.com/vibolsovichea/etch/internal/note"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -309,7 +309,7 @@ func (m AppModel) handleFinderDelete(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y":
 		if len(m.filtered) > 0 {
 			n := m.filtered[m.finderCursor]
-			trashDir := filepath.Join(m.cfg.VaultPath, ".scripture", "trash")
+			trashDir := filepath.Join(m.cfg.VaultPath, ".etch", "trash")
 			n.Delete(trashDir)
 			m.loadNotes()
 			m.filtered = m.notes
@@ -388,62 +388,76 @@ func (m AppModel) View() string {
 func (m AppModel) viewDashboard() string {
 	var sections []string
 
-	art := asciiStyle.Render(m.ascii)
-	sections = append(sections, art)
-	sections = append(sections, "")
-	sections = append(sections, "")
+	art := lipgloss.PlaceHorizontal(m.width, lipgloss.Center, asciiStyle.Render(m.ascii))
+	sections = append(sections, art, "", "")
 
 	for i, a := range dashActions {
-    isSelected := i == m.dashCursor
+		isSelected := i == m.dashCursor
 
-    indicator := " "
-    labelStyle := dashActionStyle
+		indicator := " "
+		labelStyle := dashActionStyle
 
-    if isSelected {
-        indicator = ">"
-        labelStyle = dashActionSelectedStyle
-    }
+		if isSelected {
+			indicator = ">"
+			labelStyle = dashActionSelectedStyle
+		}
 
-    sections = append(sections,
-        fmt.Sprintf("      %s %s  %s",
-            dashActionSelectedStyle.Render(indicator),
-            dashActionKeyStyle.Render(a.key),
-            labelStyle.Render(a.label),
-        ),
-    )
-    sections = append(sections, "")
-}
+		row := fmt.Sprintf("%s  %s  %s",
+			dashActionSelectedStyle.Render(indicator),
+			dashActionKeyStyle.Render(a.key),
+			labelStyle.Render(a.label),
+		)
+
+		sections = append(sections,
+			lipgloss.PlaceHorizontal(m.width, lipgloss.Center, row),
+			"",
+		)
+	}
 
 	if len(m.recent) > 0 {
 		sections = append(sections, "")
-		sections = append(sections, "      "+dashRecentTitleStyle.Render("Recent Notes"))
-		sections = append(sections, "")
+
+		title := dashRecentTitleStyle.Render("Recent Notes")
+		sections = append(sections,
+			lipgloss.PlaceHorizontal(m.width, lipgloss.Center, title),
+			"",
+		)
 
 		for i, n := range m.recent {
 			globalIdx := len(dashActions) + i
-			title := truncate(n.Title, m.width-25)
+
+			noteTitle := truncate(n.Title, 40) // fixed width for alignment
 			date := dashRecentDateStyle.Render(relativeTime(n.Modified))
 
+			var row string
 			if globalIdx == m.dashCursor {
-				sections = append(sections,
-					fmt.Sprintf("      %s %s  %s",
-						dashRecentSelectedStyle.Render(">"),
-						dashRecentSelectedStyle.Render(title),
-						date))
+				row = fmt.Sprintf("%s  %-40s  %s",
+					dashRecentSelectedStyle.Render(">"),
+					dashRecentSelectedStyle.Render(noteTitle),
+					date,
+				)
 			} else {
-				sections = append(sections,
-					fmt.Sprintf("        %s  %s",
-						dashRecentItemStyle.Render(title),
-						date))
+				row = fmt.Sprintf("   %-40s  %s",
+					dashRecentItemStyle.Render(noteTitle),
+					date,
+				)
 			}
+
+			sections = append(sections,
+				lipgloss.PlaceHorizontal(m.width, lipgloss.Center, row),
+			)
 		}
 	}
 
-	sections = append(sections, "")
-	sections = append(sections, "")
-	sections = append(sections, dashFooterStyle.Render(
-		fmt.Sprintf("      Scripture  —  %d notes in vault", len(m.notes)),
-	))
+	sections = append(sections, "", "")
+
+	footer := dashFooterStyle.Render(
+		fmt.Sprintf("etch — %d notes in vault", len(m.notes)),
+	)
+
+	sections = append(sections,
+		lipgloss.PlaceHorizontal(m.width, lipgloss.Center, footer),
+	)
 
 	content := strings.Join(sections, "\n")
 

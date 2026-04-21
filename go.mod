@@ -1,4 +1,4 @@
-module github.com/vibolsovichea/scripture
+module github.com/vibolsovichea/etch
 
 go 1.26.2
 
@@ -6,6 +6,7 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/vibolsovichea/etch v0.1.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 

@@ -29,7 +29,7 @@ type SetupModel struct {
 func NewSetupModel() SetupModel {
 	ti := textinput.New()
 	home, _ := os.UserHomeDir()
-	ti.Placeholder = filepath.Join(home, ".scripture")
+	ti.Placeholder = filepath.Join(home, ".etch")
 	ti.Focus()
 	ti.CharLimit = 256
 	ti.Width = 50
@@ -49,7 +49,7 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.VaultPath = m.input.Value()
 			if m.VaultPath == "" {
 				home, _ := os.UserHomeDir()
-				m.VaultPath = filepath.Join(home, ".scripture")
+				m.VaultPath = filepath.Join(home, ".etch")
 			}
 			return m, tea.Quit
 		case "ctrl+c", "esc":
@@ -66,8 +66,8 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m SetupModel) View() string {
 	return fmt.Sprintf(
 		"\n%s\n\n%s\n\n%s\n\n%s\n",
-		setupTitleStyle.Render("Scripture — First Time Setup"),
-		"Where should Scripture store your notes?",
+		setupTitleStyle.Render("etch — First Time Setup"),
+		"Where should etch store your notes?",
 		m.input.View(),
 		setupSubtleStyle.Render("Press Enter to confirm • Esc to cancel"),
 	)

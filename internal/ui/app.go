@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,6 +24,7 @@ const (
 	viewDashboard view = iota
 	viewFinder
 	viewCreate
+	viewEditor
 )
 
 type finderMode int
@@ -75,9 +74,12 @@ type AppModel struct {
 	finderCursor int
 	finderScroll int
 	input        textinput.Model
-	createStep createStep
-	newTitle   string
+	createStep  createStep
+	newTitle    string
 	createInput textinput.Model
+
+	// Editor
+	editor EditorModel
 
 	err error
 }
@@ -142,13 +144,17 @@ func (m AppModel) Init() tea.Cmd {
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case editorFinishedMsg:
+	case editorCloseMsg:
 		m.loadNotes()
+		m.view = viewDashboard
 		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.view == viewEditor {
+			m.editor.Resize(m.width, m.height)
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -159,7 +165,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateFinder(msg)
 		case viewCreate:
 			return m.updateCreate(msg)
+		case viewEditor:
+			var cmd tea.Cmd
+			m.editor, cmd = m.editor.Update(msg)
+			return m, cmd
 		}
+	}
+
+	// Non-key messages for editor (e.g. blink)
+	if m.view == viewEditor {
+		var cmd tea.Cmd
+		m.editor, cmd = m.editor.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }
@@ -208,11 +225,8 @@ func (m AppModel) handleDashEnter() (tea.Model, tea.Cmd) {
 
 	recentIdx := m.dashCursor - len(dashActions)
 	if recentIdx >= 0 && recentIdx < len(m.recent) {
-		n := m.recent[recentIdx]
-		c := makeEditorCmd(n.Path)
-		return m, tea.ExecProcess(c, func(err error) tea.Msg {
-			return editorFinishedMsg{err}
-		})
+		m.openEditor(m.recent[recentIdx])
+		return m, nil
 	}
 	return m, nil
 }
@@ -226,6 +240,11 @@ func (m *AppModel) openFinder() {
 	m.input.SetValue("")
 	m.input.Placeholder = "Search notes..."
 	m.input.Focus()
+}
+
+func (m *AppModel) openEditor(n *note.Note) {
+	m.editor = NewEditorModel(n, m.width, m.height)
+	m.view = viewEditor
 }
 
 func (m *AppModel) openCreate() {
@@ -264,11 +283,8 @@ func (m AppModel) handleFinderNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		if len(m.filtered) > 0 {
-			n := m.filtered[m.finderCursor]
-			c := makeEditorCmd(n.Path)
-			return m, tea.ExecProcess(c, func(err error) tea.Msg {
-				return editorFinishedMsg{err}
-			})
+			m.openEditor(m.filtered[m.finderCursor])
+			return m, nil
 		}
 	case "ctrl+d":
 		if len(m.filtered) > 0 {
@@ -348,13 +364,10 @@ func (m AppModel) updateCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.createInput.Blur()
 			return m, nil
 		}
-		m.view = viewDashboard
 		m.createInput.Blur()
 		m.loadNotes()
-		c := makeEditorCmd(n.Path)
-		return m, tea.ExecProcess(c, func(err error) tea.Msg {
-			return editorFinishedMsg{err}
-		})
+		m.openEditor(n)
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -374,6 +387,8 @@ func (m AppModel) View() string {
 		return m.viewFinder()
 	case viewCreate:
 		return m.viewCreate()
+	case viewEditor:
+		return m.editor.View()
 	default:
 		return m.viewDashboard()
 	}
@@ -453,8 +468,6 @@ func (m AppModel) viewDashboard() string {
 	)
 }
 
-// --- Finder View (Telescope-style, search at bottom) ---
-
 func (m AppModel) viewFinder() string {
 	modalW := min(m.width-4, 100)
 	modalH := min(m.height-4, 30)
@@ -475,31 +488,20 @@ func (m AppModel) viewFinder() string {
 		contentH = 3
 	}
 
-	// Title bar
 	titleBar := finderTitleStyle.Render(" Find Notes")
 
-	// Horizontal divider under title
 	topDiv := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
 
-	// Left: file list
 	left := m.finderList(listW, contentH)
 
-	// Vertical separator
 	var sepLines []string
 	for i := 0; i < contentH; i++ {
 		sepLines = append(sepLines, finderPreviewDivStyle.Render("│"))
 	}
 	sep := strings.Join(sepLines, "\n")
-
-	// Right: preview
 	right := m.finderPreview(previewW, contentH)
-
 	content := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
-
-	// Divider above search
 	bottomDiv := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
-
-	// Search bar at bottom
 	var searchBar string
 	if m.finderMode == finderDelete {
 		n := m.filtered[m.finderCursor]
@@ -510,11 +512,8 @@ func (m AppModel) viewFinder() string {
 		prompt := inputLabelStyle.Render(" > ")
 		searchBar = prompt + m.input.View()
 	}
-
-	// Help
 	help := m.finderHelp()
 
-	// Compose modal
 	modal := lipgloss.JoinVertical(lipgloss.Left,
 		titleBar,
 		topDiv,
@@ -764,16 +763,6 @@ func (m AppModel) finderVisibleCount() int {
 	}
 	return h
 }
-
-func makeEditorCmd(path string) *exec.Cmd {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	return exec.Command(editor, path)
-}
-
-type editorFinishedMsg struct{ err error }
 
 func filterNotes(notes []*note.Note, query string) []*note.Note {
 	q := strings.ToLower(query)

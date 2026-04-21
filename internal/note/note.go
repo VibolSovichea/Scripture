@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -130,6 +129,12 @@ func parseFrontmatterLine(n *Note, line string) {
 	}
 }
 
+// SetBody updates the note body and modified time.
+func (n *Note) SetBody(body string) {
+	n.Body = body
+	n.Modified = time.Now()
+}
+
 // Save writes the note back to disk.
 func (n *Note) Save() error {
 	n.Modified = time.Now()
@@ -143,19 +148,6 @@ func (n *Note) Delete(trashDir string) error {
 	}
 	dest := filepath.Join(trashDir, filepath.Base(n.Path))
 	return os.Rename(n.Path, dest)
-}
-
-// OpenInEditor opens the note in the user's $EDITOR.
-func (n *Note) OpenInEditor() error {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
-	}
-	cmd := exec.Command(editor, n.Path)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
 }
 
 // ListAll returns all notes in a directory (recursive).

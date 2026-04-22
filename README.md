@@ -4,6 +4,8 @@
 
 Inspired by Neovim and Telescope, Etch brings fast fuzzy search, structured markdown notes, and a focused TUI experience into a single portable binary—built to work seamlessly in local and remote (SSH) environments.
 
+<img width="1710" height="1015" alt="image" src="https://github.com/user-attachments/assets/19870f93-ac3d-44c6-ac13-f70fef784c88" />
+
 ---
 
 ## Why Etch?
@@ -61,12 +63,6 @@ Etch removes context switching by keeping your notes where your work already hap
 * No runtime dependencies
 * Works out of the box on macOS and Linux
 * Ideal for remote environments and SSH sessions
-
----
-
-## Demo
-
-<img width="1710" height="1015" alt="image" src="https://github.com/user-attachments/assets/19870f93-ac3d-44c6-ac13-f70fef784c88" />
 
 ---
 

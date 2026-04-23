@@ -4,26 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	setupTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#D4A843")).
-			MarginBottom(1)
-
-	setupSubtleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#8B8680"))
-)
-
 type SetupModel struct {
 	input     textinput.Model
 	VaultPath string
 	Cancelled bool
+	width     int
+	height    int
 }
 
 func NewSetupModel() SetupModel {
@@ -33,6 +26,9 @@ func NewSetupModel() SetupModel {
 	ti.Focus()
 	ti.CharLimit = 256
 	ti.Width = 50
+	ti.TextStyle = lipgloss.NewStyle().Foreground(sand)
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(gold)
+	ti.PlaceholderStyle = lipgloss.NewStyle().Foreground(darkStone)
 
 	return SetupModel{input: ti}
 }
@@ -43,6 +39,10 @@ func (m SetupModel) Init() tea.Cmd {
 
 func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
@@ -64,11 +64,40 @@ func (m SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m SetupModel) View() string {
-	return fmt.Sprintf(
-		"\n%s\n\n%s\n\n%s\n\n%s\n",
-		setupTitleStyle.Render("etch — First Time Setup"),
-		"Where should etch store your notes?",
-		m.input.View(),
-		setupSubtleStyle.Render("Press Enter to confirm • Esc to cancel"),
+	modalW := min(m.width-4, 60)
+	if modalW < 30 {
+		modalW = 30
+	}
+	innerW := modalW - 2
+
+	title := createTitleStyle.Render(" First Time Setup")
+	div := finderPreviewDivStyle.Render(strings.Repeat("─", innerW))
+
+	label := createLabelStyle.Render(" Where should etch store your notes?")
+	inputLine := fmt.Sprintf(" %s", m.input.View())
+
+	help := " " + helpKeyStyle.Render("Enter") + helpDescStyle.Render(" confirm  ") +
+		helpKeyStyle.Render("Esc") + helpDescStyle.Render(" cancel")
+
+	modal := lipgloss.JoinVertical(lipgloss.Left,
+		title,
+		div,
+		"",
+		label,
+		"",
+		inputLine,
+		"",
+		div,
+		help,
+	)
+
+	framed := createBorderStyle.
+		Width(modalW).
+		Render(modal)
+
+	return lipgloss.Place(
+		m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		framed,
 	)
 }
